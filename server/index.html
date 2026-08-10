@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>語音收集箱</title>
+    <meta name="upload-token" content="__UPLOAD_TOKEN__" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <p class="eyebrow">VOICE NOTES · MVP</p>
+      <h1>語音收集箱</h1>
+      <p class="intro">錄下想法；稍後會自動保存並轉成文字。</p>
+
+      <section class="recorder" aria-label="錄音工具">
+        <div class="recording-indicator" id="indicator" aria-hidden="true"></div>
+        <p class="status" id="status">準備錄音</p>
+        <p class="timer" id="timer">00:00</p>
+        <button class="record-button" id="recordButton" type="button">開始錄音</button>
+      </section>
+
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

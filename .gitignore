@@ -1,0 +1,21 @@
+# Node
+node_modules/
+npm-debug.log
+
+# Runtime data
+server/data/
+*.log
+
+# Secrets
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# Xcode
+apple/build/
+apple/DerivedData/
+**/xcuserdata/
+*.xcuserstate
+*.xcscmblueprint

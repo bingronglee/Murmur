@@ -1,0 +1,422 @@
+:root {
+  --bg: #101317;
+  --surface: #171d21;
+  --surface-2: #1d252b;
+  --border: #2a3338;
+  --text: #f4f7f8;
+  --text-dim: #9aa6ac;
+  --text-faint: #6d7a80;
+  --accent: #8dc9b8;
+
+  --c-todo: #e0b56c;
+  --c-expense: #d98a7a;
+  --c-idea: #9d8cd6;
+  --c-reminder: #7fb3d9;
+  --c-learn: #a3c97a;
+  --c-diary: #c9a0c4;
+  --c-misc: #838d93;
+  --danger: #d9705f;
+
+  --serif: ui-serif, "New York", "Songti TC", "PingFang TC", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "PingFang TC", "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Menlo", monospace;
+
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f3ee; --surface: #ffffff; --surface-2: #f0ece4; --border: #e2ddd2;
+    --text: #23272a; --text-dim: #656e73; --text-faint: #97a0a5;
+    --accent: #4f9c85;
+    --c-todo: #a8762b; --c-expense: #b45a45; --c-idea: #6f5bb0; --c-reminder: #3f7aa8;
+    --c-learn: #5f8a3f; --c-diary: #99578f; --c-misc: #6b7378;
+    --danger: #b8503f;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 80px; }
+
+header { margin-bottom: 18px; }
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(1.7rem, 5vw, 2.15rem);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.sub { margin: 0; color: var(--text-dim); font-size: 0.92rem; }
+
+/* ---------- 日期切換 ---------- */
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 22px 0 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 8px 6px 18px;
+}
+
+.day-label {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.day-label .weekday { font-family: var(--sans); font-size: 0.76rem; color: var(--text-dim); }
+
+.today-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  color: var(--accent);
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.today-link:hover { text-decoration: underline; }
+
+/* 兩顆箭頭永遠佔一樣的寬度，切換日期時位置不會跳動 */
+.day-controls { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+
+button.arrow {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.arrow:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+button.arrow:disabled { opacity: 0.3; cursor: default; }
+
+/* ---------- 統計 ---------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+
+.stat { background: var(--surface); padding: 14px 16px; }
+
+.stat .num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: 600;
+  display: block;
+}
+
+.stat .label { font-size: 0.76rem; color: var(--text-dim); }
+.stat.money .num { color: var(--c-expense); }
+
+/* ---------- 分類頁籤 ---------- */
+.tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 7px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); flex: 0 0 auto; }
+
+.tab[aria-selected="true"] {
+  border-color: var(--dot);
+  color: var(--text);
+  background: color-mix(in srgb, var(--dot) 14%, var(--surface));
+}
+
+.tab .count { font-family: var(--mono); font-size: 0.74rem; color: var(--text-faint); }
+.tab[aria-selected="true"] .count { color: var(--text-dim); }
+
+/* ---------- 新增記事 ---------- */
+.add-row { margin-bottom: 16px; }
+
+.add-entry-btn {
+  appearance: none;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.add-entry-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.add-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.add-cat {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.add-cat .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
+.add-cat[aria-pressed="true"] {
+  border-color: var(--dot);
+  color: var(--text);
+  background: color-mix(in srgb, var(--dot) 14%, var(--surface));
+}
+
+.add-text, .add-extra {
+  font: inherit;
+  font-size: 0.94rem;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.add-text:focus, .add-extra:focus, .add-cat:focus-visible, .add-entry-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.add-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.add-submit, .add-cancel {
+  appearance: none;
+  border: none;
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.add-submit { background: var(--accent); color: #0b1210; font-weight: 600; }
+.add-cancel { background: transparent; color: var(--text-faint); }
+.add-cancel:hover { color: var(--text-dim); }
+
+/* ---------- 行內編輯 ---------- */
+.editable { cursor: text; border-radius: 4px; }
+.editable:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+.inline-input {
+  font: inherit;
+  color: inherit;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 2px 5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ---------- 記事 ---------- */
+#panel { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
+
+.entry {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--dot);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+}
+
+.entry .time {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  flex: 0 0 auto;
+  padding-top: 2px;
+  min-width: 34px;
+}
+
+.entry .body { flex: 1; min-width: 0; }
+.entry p { margin: 0; font-size: 0.94rem; overflow-wrap: anywhere; }
+
+.entry .amount {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--c-expense);
+  white-space: nowrap;
+  align-self: baseline;
+}
+
+.entry.expense { align-items: baseline; }
+
+.entry .tag {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  font-family: var(--mono);
+}
+
+.entry-delete {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 1.05rem;
+  line-height: 1;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  opacity: 0.55;
+}
+
+.entry-delete:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); opacity: 1; }
+.entry-delete:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; opacity: 1; }
+
+.todo-row { align-items: flex-start; cursor: pointer; }
+
+.todo-row input[type="checkbox"] {
+  appearance: none;
+  width: 17px; height: 17px;
+  border: 1.5px solid var(--text-faint);
+  border-radius: 5px;
+  margin-top: 3px;
+  flex: 0 0 auto;
+  cursor: pointer;
+  position: relative;
+}
+
+.todo-row input[type="checkbox"]:checked { background: var(--c-todo); border-color: var(--c-todo); }
+
+.todo-row input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute; left: 5px; top: 1px;
+  width: 4px; height: 8px;
+  border: solid var(--surface);
+  border-width: 0 2px 2px 0;
+  transform: rotate(40deg);
+}
+
+.todo-row input[type="checkbox"]:focus-visible { outline: 2px solid var(--c-todo); outline-offset: 2px; }
+.todo-row .due { font-family: var(--mono); font-size: 0.72rem; color: var(--c-todo); margin-top: 4px; display: inline-block; }
+.todo-row.done p { color: var(--text-faint); text-decoration: line-through; }
+.todo-row.done .due { display: none; }
+
+.expense-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 2px 2px 12px;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 2px;
+}
+
+.expense-total .k { font-size: 0.82rem; color: var(--text-dim); }
+
+.expense-total .v {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--c-expense);
+}
+
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.88rem;
+}
+
+.source { margin-top: 20px; font-size: 0.76rem; color: var(--text-faint); text-align: center; }
+
+/* class 選擇器設的 display 會蓋過瀏覽器對 [hidden] 的預設值，這裡用比 class 更高的
+   specificity（class + 屬性）強制蓋回去，確保 JS 設 hidden=true 時真的會消失。 */
+.day-nav[hidden], .stats[hidden], .tabs[hidden], .add-form[hidden] { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab, .entry, button.arrow, .entry-delete { transition: background-color .15s ease, border-color .15s ease, opacity .15s ease, color .15s ease; }
+}

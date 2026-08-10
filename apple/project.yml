@@ -1,0 +1,51 @@
+name: VoiceNotesApple
+options:
+  bundleIdPrefix: com.cool.voicenotes
+  deploymentTarget:
+    iOS: "18.0"
+    watchOS: "11.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""
+targets:
+  VoiceNotesPhone:
+    type: application
+    platform: iOS
+    sources:
+      - Phone
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cool.voicenotes.phone
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Phone/Info.plist
+      properties:
+        CFBundleDisplayName: 語音記事中繼站
+        UILaunchScreen: {}
+        NSLocalNetworkUsageDescription: 將 Apple Watch 錄音上傳至你的私人語音記事伺服器。
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    dependencies:
+      - target: VoiceNotesWatch
+        embed: true
+  VoiceNotesWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - Watch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cool.voicenotes.phone.watch
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: 語音記事
+        WKCompanionAppBundleIdentifier: com.cool.voicenotes.phone
+        NSMicrophoneUsageDescription: 用來錄製你的語音記事。
+        UIBackgroundModes:
+          - audio

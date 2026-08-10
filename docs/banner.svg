@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#173A46"/>
+      <stop offset="1" stop-color="#071217"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B9F4DF"/>
+      <stop offset="1" stop-color="#65C9AF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="300" fill="url(#bg)"/>
+  <circle cx="190" cy="150" r="150" fill="url(#glow)"/>
+
+  <!-- waveform mark, scaled from apple/Brand/VoiceNotesIcon.svg -->
+  <g transform="translate(88,86) scale(0.235)">
+    <rect x="278" y="450" width="58" height="124" rx="29" fill="url(#signal)"/>
+    <rect x="372" y="358" width="58" height="308" rx="29" fill="url(#signal)"/>
+    <rect x="466" y="278" width="58" height="468" rx="29" fill="url(#signal)"/>
+    <rect x="560" y="378" width="58" height="268" rx="29" fill="url(#signal)"/>
+    <rect x="654" y="430" width="58" height="164" rx="29" fill="url(#signal)"/>
+    <circle cx="744" cy="314" r="64" fill="#FF6D67"/>
+  </g>
+
+  <text x="330" y="150" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="76" font-weight="700" fill="#F4FBF8" letter-spacing="1">Murmur</text>
+  <text x="332" y="196" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" fill="#8FBFB1">說一句話，自動變成代辦、花費，或日記</text>
+
+  <line x1="330" y1="222" x2="1140" y2="222" stroke="#2B4C51" stroke-width="1"/>
+  <text x="330" y="256" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#5E8A80">Web / Apple Watch / iPhone  →  Gemini 逐字稿  →  自動分類</text>
+</svg>

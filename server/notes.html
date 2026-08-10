@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>個人記事庫</title>
+    <meta name="upload-token" content="__UPLOAD_TOKEN__" />
+    <link rel="stylesheet" href="notes.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <p class="eyebrow">VOICE NOTES · 個人記事庫</p>
+        <h1>記事整理</h1>
+        <p class="sub">凌晨 3 點自動彙整前一天的語音記事</p>
+      </header>
+
+      <div class="day-nav" id="dayNav" hidden>
+        <div class="day-label">
+          <span id="dayLabel"></span>
+          <span class="weekday" id="weekdayLabel"></span>
+          <button id="todayBtn" class="today-link" hidden>· 回到最新</button>
+        </div>
+        <div class="day-controls">
+          <button id="prevDay" class="arrow" aria-label="前一天">‹</button>
+          <button id="nextDay" class="arrow" aria-label="後一天">›</button>
+        </div>
+      </div>
+
+      <div class="stats" id="stats" hidden>
+        <div class="stat"><span class="num" id="statCount">0</span><span class="label">當日記事</span></div>
+        <div class="stat"><span class="num" id="statTodo">0</span><span class="label">代辦未完成</span></div>
+        <div class="stat money"><span class="num" id="statMoney">$0</span><span class="label">當日花費</span></div>
+      </div>
+
+      <nav class="tabs" id="tabs" hidden></nav>
+
+      <div class="add-row">
+        <button id="addEntryBtn" class="add-entry-btn" type="button">+ 新增記事</button>
+      </div>
+
+      <form id="addForm" class="add-form" hidden>
+        <div class="add-cats" id="addCats"></div>
+        <input id="addText" class="add-text" type="text" placeholder="輸入內容…" required />
+        <input id="addAmount" class="add-extra" type="number" inputmode="numeric" placeholder="金額" hidden />
+        <input id="addDue" class="add-extra" type="text" placeholder="期限（例如：明天、8/20）" hidden />
+        <div class="add-actions">
+          <button type="submit" class="add-submit">新增</button>
+          <button type="button" id="addCancel" class="add-cancel">取消</button>
+        </div>
+      </form>
+
+      <section id="panel"></section>
+
+      <p class="source">資料來源：voice-notes 逐字稿 · 由 Gemini 每日 03:00 自動整理</p>
+    </div>
+    <script src="notes.js"></script>
+  </body>
+</html>
