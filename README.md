@@ -68,7 +68,10 @@ Apple Watch／iPhone App 的建置與設定見 **[apple/README.md](apple/README.
 
 ## 技術筆記
 
-架構決策（例如整理時機從「排程整批重跑」改成「錄完立刻整理＋排程當安全網」的原因）記在 [docs/decisions.md](docs/decisions.md)，跟操作步驟分開，方便回頭理解某個設計當初為什麼這樣選，而不影響閱讀主要文件。
+「怎麼用」寫在各自的 README；**為什麼這樣設計**另外記在 [docs/decisions.md](docs/decisions.md)，避免操作步驟跟背景脈絡混在一起。目前收錄兩件事：
+
+- **整理時機的取捨**：從「排程整批重跑」改成「錄完立刻整理＋排程當安全網」——原本每天固定時間才整批重新分類，當天錄的東西要等到排程跑完才會出現，體感像壞了；改成轉錄一完成就用 `organizeNow()` 立刻分類單筆逐字稿，排程腳本 `organize.js` 退居成安全網，只補「當下 Gemini 剛好出錯」漏掉的部分，並用逐字稿來源檔名判斷哪些已經處理過，不會覆蓋既有記事或手動編輯。
+- **自架驗證的兩個坑**：如果想在 `server.js` 前面加一層登入（例如 Cloudflare Access）取代單純的 basic auth，有兩個容易忽略但會直接弄壞功能的地方——`/api/upload` 必須排除在互動式登入之外（背景上傳沒有人能操作登入畫面），以及 Cloudflare Access 的橘雲代理跟 TLS-ALPN-01 憑證驗證會互相衝突，需要改用 HTTP-01。
 
 ## License
 
