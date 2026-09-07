@@ -6,6 +6,7 @@ import WatchConnectivity
 final class PhoneTransferManager: NSObject, ObservableObject {
     static let shared = PhoneTransferManager()
     static let defaultUploadEndpoint = "http://localhost:3000/api/upload"
+    static let backgroundSessionIdentifier = "com.cool.voicenotes.phone.upload"
 
     @Published private(set) var statusMessage = "等待 Apple Watch 錄音"
     @Published private(set) var pendingCount = 0
@@ -14,12 +15,16 @@ final class PhoneTransferManager: NSObject, ObservableObject {
     private let fileManager = FileManager.default
     private let networkMonitor = NWPathMonitor()
     private let workerQueue = DispatchQueue(label: "VoiceNotesPhone.Transfer")
+    private let workerQueueKey = DispatchSpecificKey<UInt8>()
+    private let delegateOperations = DispatchGroup()
     private let incomingDirectory: URL
     private var watchSession: WCSession?
+    private var scheduledFilenames = Set<String>()
+    private var backgroundEventsCompletionHandler: (() -> Void)?
 
     private lazy var backgroundSession: URLSession = {
         let configuration = URLSessionConfiguration.background(
-            withIdentifier: "com.cool.voicenotes.phone.upload"
+            withIdentifier: Self.backgroundSessionIdentifier
         )
         configuration.sessionSendsLaunchEvents = true
         configuration.isDiscretionary = false
@@ -34,6 +39,7 @@ final class PhoneTransferManager: NSObject, ObservableObject {
         ).first!
         incomingDirectory = applicationSupport.appendingPathComponent("PendingVoiceNotes", isDirectory: true)
         super.init()
+        workerQueue.setSpecific(key: workerQueueKey, value: 1)
 
         try? fileManager.createDirectory(
             at: incomingDirectory,
@@ -72,36 +78,62 @@ final class PhoneTransferManager: NSObject, ObservableObject {
     func retryPendingUploads() {
         workerQueue.async { [weak self] in
             guard let self else { return }
-            let files = (try? self.fileManager.contentsOfDirectory(
-                at: self.incomingDirectory,
-                includingPropertiesForKeys: nil
-            )) ?? []
+            self.schedulePendingUploads()
+        }
+    }
 
-            self.backgroundSession.getAllTasks { tasks in
-                let activeNames = Set(tasks.compactMap(\.taskDescription))
-                files
-                    .filter { $0.pathExtension.lowercased() == "m4a" }
-                    .filter { !activeNames.contains($0.lastPathComponent) }
-                    .forEach { self.startUpload(for: $0) }
+    func handleEvents(
+        forBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        guard identifier == Self.backgroundSessionIdentifier else {
+            DispatchQueue.main.async(execute: completionHandler)
+            return
+        }
+
+        workerQueue.async { [weak self] in
+            guard let self else { return }
+            self.backgroundEventsCompletionHandler = completionHandler
+            _ = self.backgroundSession
+        }
+    }
+
+    private func schedulePendingUploads() {
+        let files = pendingFiles()
+
+        backgroundSession.getAllTasks { [weak self] tasks in
+            guard let self else { return }
+            self.workerQueue.async {
+                self.scheduledFilenames.formUnion(tasks.compactMap(\.taskDescription))
+
+                for fileURL in files {
+                    guard self.fileManager.fileExists(atPath: fileURL.path) else { continue }
+                    guard self.scheduledFilenames.insert(fileURL.lastPathComponent).inserted else { continue }
+                    guard self.startUpload(for: fileURL) else {
+                        self.scheduledFilenames.remove(fileURL.lastPathComponent)
+                        continue
+                    }
+                }
                 self.refreshPendingCount()
             }
         }
     }
 
-    private func startUpload(for fileURL: URL) {
+    @discardableResult
+    private func startUpload(for fileURL: URL) -> Bool {
         guard
             let endpointValue = UserDefaults.standard.string(forKey: "uploadEndpoint"),
             let endpoint = URL(string: endpointValue),
             !endpointValue.isEmpty
         else {
             updateStatus("請先在 iPhone App 設定上傳服務網址")
-            return
+            return false
         }
 
         let token = UserDefaults.standard.string(forKey: "uploadToken") ?? ""
         guard !token.isEmpty else {
             updateStatus("請先在 iPhone App 設定上傳金鑰")
-            return
+            return false
         }
 
         var request = URLRequest(url: endpoint)
@@ -114,6 +146,7 @@ final class PhoneTransferManager: NSObject, ObservableObject {
         task.taskDescription = fileURL.lastPathComponent
         task.resume()
         updateStatus("正在上傳 \(fileURL.lastPathComponent)")
+        return true
     }
 
     private func storeReceivedFile(_ file: WCSessionFile) throws -> URL {
@@ -133,11 +166,22 @@ final class PhoneTransferManager: NSObject, ObservableObject {
     }
 
     private func refreshPendingCount() {
-        let count = ((try? fileManager.contentsOfDirectory(
+        let count = pendingFiles().count
+        DispatchQueue.main.async { self.pendingCount = count }
+    }
+
+    private func pendingFiles() -> [URL] {
+        ((try? fileManager.contentsOfDirectory(
             at: incomingDirectory,
             includingPropertiesForKeys: nil
-        )) ?? []).filter { $0.pathExtension.lowercased() == "m4a" }.count
-        DispatchQueue.main.async { self.pendingCount = count }
+        )) ?? []).filter { $0.pathExtension.lowercased() == "m4a" }
+    }
+
+    private func moveReceivedFile(_ file: WCSessionFile) throws -> URL {
+        if DispatchQueue.getSpecific(key: workerQueueKey) != nil {
+            return try storeReceivedFile(file)
+        }
+        return try workerQueue.sync { try storeReceivedFile(file) }
     }
 
     private func updateStatus(_ message: String) {
@@ -164,7 +208,8 @@ extension PhoneTransferManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceive file: WCSessionFile) {
         do {
-            let storedFile = try storeReceivedFile(file)
+            // WatchConnectivity deletes this temporary file when the delegate returns.
+            let storedFile = try moveReceivedFile(file)
             let watchFilename = (file.metadata?["filename"] as? String)
                 .map { URL(fileURLWithPath: $0).lastPathComponent }
                 ?? storedFile.lastPathComponent
@@ -188,24 +233,48 @@ extension PhoneTransferManager: URLSessionTaskDelegate, URLSessionDelegate {
         didCompleteWithError error: Error?
     ) {
         guard let filename = task.taskDescription else { return }
-        let fileURL = incomingDirectory.appendingPathComponent(filename)
         let statusCode = (task.response as? HTTPURLResponse)?.statusCode
         let succeeded = error == nil && statusCode.map { 200..<300 ~= $0 } == true
 
-        if succeeded {
-            do {
-                try fileManager.removeItem(at: fileURL)
-                watchSession?.transferUserInfo([
-                    "uploadedFilename": filename,
-                    "uploadedAt": Date().timeIntervalSince1970,
-                ])
-                updateStatus("已完成上傳：\(filename)")
-            } catch {
-                updateStatus("上傳完成，但清理暫存失敗")
+        delegateOperations.enter()
+        let delegateOperations = delegateOperations
+        workerQueue.async { [weak self] in
+            defer { delegateOperations.leave() }
+            guard let self else { return }
+
+            self.scheduledFilenames.remove(filename)
+            let fileURL = self.incomingDirectory.appendingPathComponent(filename)
+
+            if succeeded {
+                do {
+                    try self.fileManager.removeItem(at: fileURL)
+                    DispatchQueue.main.async {
+                        self.watchSession?.transferUserInfo([
+                            "uploadedFilename": filename,
+                            "uploadedAt": Date().timeIntervalSince1970,
+                        ])
+                    }
+                    self.updateStatus("已完成上傳：\(filename)")
+                } catch {
+                    self.updateStatus("上傳完成，但清理暫存失敗")
+                }
+            } else {
+                self.updateStatus("上傳失敗，已保留並等待自動重試")
             }
-        } else {
-            updateStatus("上傳失敗，已保留並等待自動重試")
+            self.refreshPendingCount()
         }
-        refreshPendingCount()
+    }
+
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        guard session.configuration.identifier == Self.backgroundSessionIdentifier else { return }
+
+        workerQueue.async { [weak self] in
+            guard let self else { return }
+            self.delegateOperations.notify(queue: self.workerQueue) {
+                let completionHandler = self.backgroundEventsCompletionHandler
+                self.backgroundEventsCompletionHandler = nil
+                DispatchQueue.main.async(execute: completionHandler ?? {})
+            }
+        }
     }
 }

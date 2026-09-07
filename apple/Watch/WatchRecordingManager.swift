@@ -13,17 +13,24 @@ final class WatchRecordingManager: NSObject, ObservableObject {
     @Published private(set) var pendingCount = 0
 
     private let fileManager = FileManager.default
+    private let recordingDirectory: URL
     private let pendingDirectory: URL
     private var recorder: AVAudioRecorder?
     private var timer: Timer?
     private var startedAt: Date?
     private var watchSession: WCSession?
+    private var awaitingReceiptFilenames = Set<String>()
 
     private override init() {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        recordingDirectory = documents.appendingPathComponent("RecordingVoiceNotes", isDirectory: true)
         pendingDirectory = documents.appendingPathComponent("PendingVoiceNotes", isDirectory: true)
         super.init()
 
+        try? fileManager.createDirectory(
+            at: recordingDirectory,
+            withIntermediateDirectories: true
+        )
         try? fileManager.createDirectory(
             at: pendingDirectory,
             withIntermediateDirectories: true
@@ -46,15 +53,14 @@ final class WatchRecordingManager: NSObject, ObservableObject {
     }
 
     private func requestPermissionAndStart() {
-        let audioSession = AVAudioSession.sharedInstance()
-        switch audioSession.recordPermission {
+        switch AVAudioApplication.shared.recordPermission {
         case .granted:
             configureAndStartRecording()
         case .denied:
             statusMessage = "請在設定中允許麥克風"
             isProcessing = false
         case .undetermined:
-            audioSession.requestRecordPermission { [weak self] granted in
+            AVAudioApplication.requestRecordPermission { [weak self] granted in
                 DispatchQueue.main.async {
                     if granted {
                         self?.configureAndStartRecording()
@@ -91,8 +97,8 @@ final class WatchRecordingManager: NSObject, ObservableObject {
     }
 
     private func startRecorder() {
-        let filename = "watch-voice-\(Self.timestamp()).m4a"
-        let destination = pendingDirectory.appendingPathComponent(filename)
+        let filename = "watch-voice-\(UUID().uuidString).m4a"
+        let destination = recordingDirectory.appendingPathComponent(filename)
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
             AVSampleRateKey: 16_000,
@@ -103,6 +109,7 @@ final class WatchRecordingManager: NSObject, ObservableObject {
 
         do {
             recorder = try AVAudioRecorder(url: destination, settings: settings)
+            recorder?.delegate = self
             recorder?.prepareToRecord()
             guard recorder?.record() == true else {
                 statusMessage = "無法開始錄音"
@@ -121,23 +128,9 @@ final class WatchRecordingManager: NSObject, ObservableObject {
     }
 
     private func stopRecording() {
-        let recorderToStop = recorder
-        recorder = nil
         timer?.invalidate()
         timer = nil
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            recorderToStop?.stop()
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isRecording = false
-                self.isProcessing = false
-                self.elapsedText = "00:00"
-                self.statusMessage = "已保存，等待傳送"
-                self.refreshPendingCount()
-                self.enqueuePendingFiles()
-            }
-        }
+        recorder?.stop()
     }
 
     private func startTimer() {
@@ -175,6 +168,7 @@ final class WatchRecordingManager: NSObject, ObservableObject {
         files
             .filter { $0.pathExtension.lowercased() == "m4a" }
             .filter { !outstanding.contains($0.lastPathComponent) }
+            .filter { !awaitingReceiptFilenames.contains($0.lastPathComponent) }
             .forEach {
                 session.transferFile($0, metadata: ["filename": $0.lastPathComponent])
             }
@@ -188,11 +182,48 @@ final class WatchRecordingManager: NSObject, ObservableObject {
         )) ?? []).filter { $0.pathExtension.lowercased() == "m4a" }.count
     }
 
-    private static func timestamp() -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyyMMdd-HHmmss"
-        return formatter.string(from: Date())
+    private func publishFinishedRecording(at draftURL: URL) throws -> URL {
+        let pendingURL = pendingDirectory.appendingPathComponent(draftURL.lastPathComponent)
+        try fileManager.moveItem(at: draftURL, to: pendingURL)
+        return pendingURL
+    }
+
+    private func finishRecording(with recorder: AVAudioRecorder, succeeded: Bool) {
+        guard self.recorder === recorder else { return }
+        self.recorder = nil
+        isRecording = false
+        isProcessing = false
+        elapsedText = "00:00"
+        startedAt = nil
+
+        defer {
+            try? AVAudioSession.sharedInstance().setActive(
+                false,
+                options: .notifyOthersOnDeactivation
+            )
+        }
+
+        guard succeeded else {
+            statusMessage = "錄音未完成，草稿已保留"
+            return
+        }
+
+        do {
+            _ = try publishFinishedRecording(at: recorder.url)
+            statusMessage = "已保存，等待傳送"
+            refreshPendingCount()
+            enqueuePendingFiles()
+        } catch {
+            statusMessage = "保存錄音失敗：\(error.localizedDescription)"
+        }
+    }
+}
+
+extension WatchRecordingManager: AVAudioRecorderDelegate {
+    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            self?.finishRecording(with: recorder, succeeded: flag)
+        }
     }
 }
 
@@ -228,9 +259,8 @@ extension WatchRecordingManager: WCSessionDelegate {
             if let error {
                 self.statusMessage = "同步失敗，稍後重試：\(error.localizedDescription)"
             } else {
-                try? self.fileManager.removeItem(at: fileTransfer.file.fileURL)
-                self.statusMessage = "已傳送到 iPhone"
-                self.refreshPendingCount()
+                self.awaitingReceiptFilenames.insert(fileTransfer.file.fileURL.lastPathComponent)
+                self.statusMessage = "已傳送到 iPhone，等待確認"
             }
         }
     }
@@ -243,6 +273,7 @@ extension WatchRecordingManager: WCSessionDelegate {
             let safeFilename = URL(fileURLWithPath: filename).lastPathComponent
             let localFile = self.pendingDirectory.appendingPathComponent(safeFilename)
             try? self.fileManager.removeItem(at: localFile)
+            self.awaitingReceiptFilenames.remove(safeFilename)
             self.refreshPendingCount()
             self.statusMessage = userInfo["uploadedFilename"] != nil
                 ? "iPhone 已完成上傳"
